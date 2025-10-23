@@ -14,7 +14,7 @@ COPY ./config /etc/kong/custom
 # Set environment variables
 ENV KONG_DATABASE=postgres
 ENV KONG_DECLARATIVE_CONFIG=/etc/kong/custom/kong.yml
-ENV KONG_PLUGINS=bundled,ai-proxy,ai-prompt-template,ai-prompt-guard,ai-request-transformer,ai-response-transformer
+ENV KONG_PLUGINS=bundled,ai-proxy,ai-prompt-template,ai-prompt-guard,ai-request-transformer,ai-response-transformer,pre-function,post-function,proxy-cache
 ENV KONG_LOG_LEVEL=info
 ENV KONG_PROXY_ACCESS_LOG=/dev/stdout
 ENV KONG_ADMIN_ACCESS_LOG=/dev/stdout
