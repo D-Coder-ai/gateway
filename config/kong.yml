@@ -1,0 +1,179 @@
+_format_version: "3.0"
+_transform: true
+
+# Services definition for LLM providers
+services:
+  # OpenAI Service
+  - name: openai-service
+    url: https://api.openai.com/v1/chat/completions
+    protocol: https
+    port: 443
+    path: /v1/chat/completions
+    tags:
+      - llm
+      - openai
+
+  # Anthropic Service
+  - name: anthropic-service
+    url: https://api.anthropic.com/v1/messages
+    protocol: https
+    port: 443
+    path: /v1/messages
+    tags:
+      - llm
+      - anthropic
+
+  # Google Vertex AI Service
+  - name: vertex-ai-service
+    url: https://us-central1-aiplatform.googleapis.com
+    protocol: https
+    port: 443
+    tags:
+      - llm
+      - google
+
+  # Health Check Service
+  - name: health-service
+    url: http://httpbin.org/status/200
+    protocol: http
+    port: 80
+    path: /status/200
+    tags:
+      - monitoring
+
+# Routes definition
+routes:
+  # OpenAI Routes
+  - name: openai-chat-route
+    service: openai-service
+    paths:
+      - /v1/llm/openai/chat
+    strip_path: true
+    tags:
+      - llm
+      - openai
+
+  # Anthropic Routes
+  - name: anthropic-chat-route
+    service: anthropic-service
+    paths:
+      - /v1/llm/anthropic/chat
+    strip_path: true
+    tags:
+      - llm
+      - anthropic
+
+  # Vertex AI Routes
+  - name: vertex-ai-route
+    service: vertex-ai-service
+    paths:
+      - /v1/llm/vertex/chat
+    strip_path: true
+    tags:
+      - llm
+      - google
+
+  # Health Check Route
+  - name: health-route
+    service: health-service
+    paths:
+      - /health
+    strip_path: true
+    tags:
+      - monitoring
+
+# Global Plugins
+plugins:
+  # Rate Limiting
+  - name: rate-limiting
+    config:
+      minute: 60
+      hour: 1000
+      policy: redis
+      redis:
+        host: redis
+        port: 6379
+        database: 0
+
+  # CORS
+  - name: cors
+    config:
+      origins:
+        - "*"
+      methods:
+        - GET
+        - POST
+        - PUT
+        - DELETE
+        - OPTIONS
+        - HEAD
+        - PATCH
+      headers:
+        - Accept
+        - Accept-Version
+        - Content-Length
+        - Content-Type
+        - Authorization
+        - X-Tenant-Id
+        - X-Request-Id
+      exposed_headers:
+        - X-Rate-Limit-Limit
+        - X-Rate-Limit-Remaining
+        - X-Rate-Limit-Reset
+      credentials: true
+      max_age: 3600
+
+  # Request ID
+  - name: correlation-id
+    config:
+      header_name: X-Request-Id
+      generator: uuid
+      echo_downstream: true
+
+  # Logging
+  - name: http-log
+    config:
+      http_endpoint: http://loki:3100/loki/api/v1/push
+      method: POST
+      timeout: 1000
+      keepalive: 1000
+      flush_timeout: 2
+      retry_count: 10
+
+  # Prometheus Metrics
+  - name: prometheus
+    config:
+      status_code_metrics: true
+      latency_metrics: true
+      bandwidth_metrics: true
+      upstream_health_metrics: true
+
+# Consumer Groups for Multi-tenancy
+consumer_groups:
+  - name: free-tier
+    tags:
+      - tier:free
+
+  - name: pro-tier
+    tags:
+      - tier:pro
+
+  - name: enterprise-tier
+    tags:
+      - tier:enterprise
+
+# Upstreams for load balancing
+upstreams:
+  - name: platform-api
+    tags:
+      - internal
+    targets:
+      - target: platform-api:8082
+        weight: 100
+
+  - name: llmops
+    tags:
+      - internal
+    targets:
+      - target: llmops:8081
+        weight: 100
